@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+Rsrc-Class-Path: ./ portico.jar
+Class-Path: .
+Rsrc-Main-Class: hla13.Example13Federate
+Main-Class: org.eclipse.jdt.internal.jarinjarloader.JarRsrcLoader
+
