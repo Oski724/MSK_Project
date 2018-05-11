@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.util.Collections;
+import java.util.LinkedList;
 
 public class MyjniaFederate {
 
@@ -22,6 +23,9 @@ public class MyjniaFederate {
     private final double timeStep           = 10.0;
     private int stock                       = 10;
     private int storageHlaHandle;
+    private int czasMycia;
+    private boolean czyWolne;
+    private LinkedList<Integer> kolejka;
 
 
     public void runFederate() throws Exception {
@@ -170,7 +174,7 @@ public class MyjniaFederate {
 
     private void publishAndSubscribe() throws RTIexception {
 
-        int classHandle = rtiamb.getObjectClassHandle("ObjectRoot.Storage");
+        /*int classHandle = rtiamb.getObjectClassHandle("ObjectRoot.Storage");
         int stockHandle    = rtiamb.getAttributeHandle( "stock", classHandle );
 
         AttributeHandleSet attributes =
@@ -185,7 +189,45 @@ public class MyjniaFederate {
 
         int getProductHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.GetProduct" );
         fedamb.getProductHandle = getProductHandle;
-        rtiamb.subscribeInteractionClass( getProductHandle );
+        rtiamb.subscribeInteractionClass( getProductHandle );*/
+        		
+    	////////Publikacja Obiektu////////
+    	int classHandle = rtiamb.getObjectClassHandle("ObjectRoot.Myjnia"); //Powo³anie obiektu ObjectClassHandle, bêd¹cy wskaznikiem do obiektu
+    	AttributeHandleSet attributes = RtiFactoryFactory.getRtiFactory().createAttributeHandleSet(); //Powo³anie obiektu AttributeHandleSet, bêd¹ca list¹ wskazników atrybutów
+    	 
+        int czasMyciaHandle    = rtiamb.getAttributeHandle( "czasMycia", classHandle ); //Powo³anie obiektu AttributeHandle, bêd¹cy wskaznikiem do atrybutu
+        attributes.add( czasMyciaHandle ); //Dodanie wskaznika do listy wskazników atrybutów
+        
+        int czyWolnyHandle    = rtiamb.getAttributeHandle( "czyWolny", classHandle );
+        attributes.add( czyWolnyHandle );
+
+        int kolejkaHandle    = rtiamb.getAttributeHandle( "kolejkaHandle", classHandle );
+        attributes.add( kolejkaHandle );
+         
+        rtiamb.publishObjectClass(classHandle, attributes); //Publikacja Obiektu
+        
+        /////////Subskrybcja Obiektu Pojazd///////////
+        int pojazdClassHandle = rtiamb.getObjectClassHandle("ObjectRoot.Pojazd"); //Powo³anie obiektu ObjectClassHandle, bêd¹cy wskaznikiem do obiektu
+    	AttributeHandleSet pojazdAttributes = RtiFactoryFactory.getRtiFactory().createAttributeHandleSet(); //Powo³anie obiektu AttributeHandleSet, bêd¹ca list¹ wskazników atrybutów
+  
+    	int idPojazduHandle    = rtiamb.getAttributeHandle( "idPojazdu", pojazdClassHandle );
+        pojazdAttributes.add( idPojazduHandle );
+         
+        rtiamb.subscribeObjectClassAttributes(pojazdClassHandle, pojazdAttributes);
+ 
+        
+        /////////Publikacja Interakcji///////////////
+    	int umieszczenieWKolejceHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.UmieszczenieWKolejce" ); //Powo³anie obiektu InteractionClassHandle, bêd¹cy wskaznikiem do interakcji
+    	rtiamb.publishInteractionClass(umieszczenieWKolejceHandle); //Publikacja interakcji
+    	int udostepnienieUslugiHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.UdostepnienieUslugi" );
+    	rtiamb.publishInteractionClass(udostepnienieUslugiHandle);
+    	
+    	//////////Subskrybcja Interakcji/////////////
+    	int staniecieWKolejceHandle = rtiamb.getInteractionClassHandle("InteractionRoot.StaniecieWKolejce"); //Powo³anie obiektu InteractionClassHandle, bêd¹cy wskaznikiem do interakcji
+    	rtiamb.subscribeInteractionClass(staniecieWKolejceHandle); //Subskrybcja na interakcjê
+    	int mycieHandle = rtiamb.getInteractionClassHandle("InteractionRoot.Mycie");
+    	rtiamb.subscribeInteractionClass(mycieHandle);
+  
     }
 
     private void enableTimePolicy() throws RTIexception

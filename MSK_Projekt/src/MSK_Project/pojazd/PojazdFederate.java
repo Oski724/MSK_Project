@@ -22,6 +22,9 @@ public class PojazdFederate {
     private RTIambassador rtiamb;
     private PojazdAmbassador fedamb;
     private final double timeStep           = 10.0;
+    private String typPaliwa;
+    private int czasTankowania;
+    private boolean czyBrudne;
 
     public void runFederate() throws RTIexception {
         rtiamb = RtiFactoryFactory.getRtiFactory().createRtiAmbassador();
@@ -129,8 +132,61 @@ public class PojazdFederate {
     }
 
     private void publishAndSubscribe() throws RTIexception {
-        int addProductHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.GetProduct" );
-        rtiamb.publishInteractionClass(addProductHandle);
+        //int addProductHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.GetProduct" );
+        //rtiamb.publishInteractionClass(addProductHandle);
+    	
+    	////////Publikacja Obiektu////////
+    	int classHandle = rtiamb.getObjectClassHandle("ObjectRoot.Pojazd"); //Powo³anie obiektu ObjectClassHandle, bêd¹cy wskaznikiem do obiektu
+    	AttributeHandleSet attributes = RtiFactoryFactory.getRtiFactory().createAttributeHandleSet(); //Powo³anie obiektu AttributeHandleSet, bêd¹ca list¹ wskazników atrybutów
+    	 
+        int typPaliwaHandle    = rtiamb.getAttributeHandle( "typPaliwa", classHandle ); //Powo³anie obiektu AttributeHandle, bêd¹cy wskaznikiem do atrybutu
+        attributes.add( typPaliwaHandle ); //Dodanie wskaznika do listy wskazników atrybutów
+
+        int idPojazduHandle    = rtiamb.getAttributeHandle( "idPojazdu", classHandle );
+        attributes.add( idPojazduHandle );
+        
+        int czasTankowaniaHandle    = rtiamb.getAttributeHandle( "czasTankowania", classHandle );
+        attributes.add( czasTankowaniaHandle );
+
+        int czyBrudnyHandle    = rtiamb.getAttributeHandle( "czyBrudny", classHandle );
+        attributes.add( czyBrudnyHandle );
+         
+        rtiamb.publishObjectClass(classHandle, attributes); //Publikacja Obiektu
+        
+        /////////Subskrybcja Obiektu Dystrybutor///////////
+        int dystrybutorClassHandle = rtiamb.getObjectClassHandle("ObjectRoot.Dystrybutor"); //Powo³anie obiektu ObjectClassHandle, bêd¹cy wskaznikiem do obiektu
+    	AttributeHandleSet dytrybutorAttributes = RtiFactoryFactory.getRtiFactory().createAttributeHandleSet(); //Powo³anie obiektu AttributeHandleSet, bêd¹ca list¹ wskazników atrybutów
+    	 
+        int typPaliwaDHandle  = rtiamb.getAttributeHandle( "typPaliwa", dystrybutorClassHandle ); //Powo³anie obiektu AttributeHandle, bêd¹cy wskaznikiem do atrybutu
+        dytrybutorAttributes.add( typPaliwaDHandle ); //Dodanie wskaznika do listy wskazników atrybutów
+        
+        int czyWolnyHandle    = rtiamb.getAttributeHandle( "czyWolny", dystrybutorClassHandle );
+        dytrybutorAttributes.add( czasTankowaniaHandle );
+         
+        rtiamb.subscribeObjectClassAttributes(dystrybutorClassHandle, dytrybutorAttributes);
+        
+        /////////Subskrybcja Obiektu Myjnia///////////
+        int myjniaClassHandle = rtiamb.getObjectClassHandle("ObjectRoot.Dystrybutor"); //Powo³anie obiektu ObjectClassHandle, bêd¹cy wskaznikiem do obiektu
+    	AttributeHandleSet myjniaAttributes = RtiFactoryFactory.getRtiFactory().createAttributeHandleSet(); //Powo³anie obiektu AttributeHandleSet, bêd¹ca list¹ wskazników atrybutów
+        
+        int czyWolnyMHandle    = rtiamb.getAttributeHandle( "czyWolny", myjniaClassHandle );
+        myjniaAttributes.add( czyWolnyMHandle );
+         
+        rtiamb.subscribeObjectClassAttributes(myjniaClassHandle, myjniaAttributes); //Subskrybcja Obiektu
+        
+        /////////Publikacja Interakcji///////////////
+    	int staniecieWKolejceHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.StaniecieWKolejce" ); //Powo³anie obiektu InteractionClassHandle, bêd¹cy wskaznikiem do interakcji
+    	rtiamb.publishInteractionClass(staniecieWKolejceHandle); //Publikacja interakcji
+    	int tankowanieHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.Tankowanie" );
+    	rtiamb.publishInteractionClass(tankowanieHandle);
+    	int mycieHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.Mycie" );
+    	rtiamb.publishInteractionClass(mycieHandle);
+    	
+    	//////////Subskrybcja Interakcji/////////////
+    	int umieszczanieWKolejceHandle = rtiamb.getInteractionClassHandle("InteractionRoot.UmieszczanieWKolejce"); //Powo³anie obiektu InteractionClassHandle, bêd¹cy wskaznikiem do interakcji
+    	rtiamb.subscribeInteractionClass(umieszczanieWKolejceHandle); //Subskrybcja na interakcjê
+    	int udostepnienieUslugiHandle = rtiamb.getInteractionClassHandle("InteractionRoot.UdostepnienieUslugi");
+    	rtiamb.subscribeInteractionClass(udostepnienieUslugiHandle);
     }
 
     private void advanceTime( double timestep ) throws RTIexception

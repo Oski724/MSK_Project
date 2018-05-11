@@ -11,6 +11,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
+import java.util.LinkedList;
 import java.util.Random;
 
 public class DystrybutorFederate {
@@ -20,6 +21,9 @@ public class DystrybutorFederate {
     private RTIambassador rtiamb;
     private DystrybutorAmbassador fedamb;
     private final double timeStep           = 10.0;
+    private String typPaliwa;
+    private boolean czyWolny;
+    private LinkedList<Integer> kolejka; 
 
     public void runFederate() throws RTIexception{
         rtiamb = RtiFactoryFactory.getRtiFactory().createRtiAmbassador();
@@ -125,8 +129,54 @@ public class DystrybutorFederate {
     }
 
     private void publishAndSubscribe() throws RTIexception {
-        int addProductHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.AddProduct" );
-        rtiamb.publishInteractionClass(addProductHandle);
+        //int addProductHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.AddProduct" );
+       // rtiamb.publishInteractionClass(addProductHandle);
+    	
+    	//int addProductHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.GetProduct" );
+        //rtiamb.publishInteractionClass(addProductHandle);
+    	
+    	////////Publikacja Obiektu////////
+    	int classHandle = rtiamb.getObjectClassHandle("ObjectRoot.Dystrybutor"); //Powo³anie obiektu ObjectClassHandle, bêd¹cy wskaznikiem do obiektu
+    	AttributeHandleSet attributes = RtiFactoryFactory.getRtiFactory().createAttributeHandleSet(); //Powo³anie obiektu AttributeHandleSet, bêd¹ca list¹ wskazników atrybutów
+    	 
+        int typPaliwaHandle    = rtiamb.getAttributeHandle( "typPaliwa", classHandle ); //Powo³anie obiektu AttributeHandle, bêd¹cy wskaznikiem do atrybutu
+        attributes.add( typPaliwaHandle ); //Dodanie wskaznika do listy wskazników atrybutów
+        
+        int czyWolnyHandle    = rtiamb.getAttributeHandle( "czyWolny", classHandle );
+        attributes.add( czyWolnyHandle );
+
+        int kolejkaHandle    = rtiamb.getAttributeHandle( "kolejkaHandle", classHandle );
+        attributes.add( kolejkaHandle );
+         
+        rtiamb.publishObjectClass(classHandle, attributes); //Publikacja Obiektu
+        
+        /////////Subskrybcja Obiektu Pojazd///////////
+        int pojazdClassHandle = rtiamb.getObjectClassHandle("ObjectRoot.Pojazd"); //Powo³anie obiektu ObjectClassHandle, bêd¹cy wskaznikiem do obiektu
+    	AttributeHandleSet pojazdAttributes = RtiFactoryFactory.getRtiFactory().createAttributeHandleSet(); //Powo³anie obiektu AttributeHandleSet, bêd¹ca list¹ wskazników atrybutów
+    	 
+        int typPaliwaPHandle  = rtiamb.getAttributeHandle( "typPaliwa", pojazdClassHandle ); //Powo³anie obiektu AttributeHandle, bêd¹cy wskaznikiem do atrybutu
+        pojazdAttributes.add( typPaliwaPHandle ); //Dodanie wskaznika do listy wskazników atrybutów
+        
+        int czasTankowaniaHandle    = rtiamb.getAttributeHandle( "czasTankowania", pojazdClassHandle );
+        pojazdAttributes.add( czasTankowaniaHandle );
+        
+        int idPojazduHandle    = rtiamb.getAttributeHandle( "idPojazdu", pojazdClassHandle );
+        pojazdAttributes.add( idPojazduHandle );
+         
+        rtiamb.subscribeObjectClassAttributes(pojazdClassHandle, pojazdAttributes);
+ 
+        
+        /////////Publikacja Interakcji///////////////
+    	int umieszczenieWKolejceHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.UmieszczenieWKolejce" ); //Powo³anie obiektu InteractionClassHandle, bêd¹cy wskaznikiem do interakcji
+    	rtiamb.publishInteractionClass(umieszczenieWKolejceHandle); //Publikacja interakcji
+    	int udostepnienieUslugiHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.UdostepnienieUslugi" );
+    	rtiamb.publishInteractionClass(udostepnienieUslugiHandle);
+    	
+    	//////////Subskrybcja Interakcji/////////////
+    	int staniecieWKolejceHandle = rtiamb.getInteractionClassHandle("InteractionRoot.StaniecieWKolejce"); //Powo³anie obiektu InteractionClassHandle, bêd¹cy wskaznikiem do interakcji
+    	rtiamb.subscribeInteractionClass(staniecieWKolejceHandle); //Subskrybcja na interakcjê
+    	int tankowanieHandle = rtiamb.getInteractionClassHandle("InteractionRoot.Tankowanie");
+    	rtiamb.subscribeInteractionClass(tankowanieHandle);
     }
 
     private void advanceTime( double timestep ) throws RTIexception

@@ -120,17 +120,15 @@ public class StatystykaFederate {
 
 		// Publkowanie obiektu SimObject z atrybutem state
 
-		int simObjectClassHandle = rtiamb
-				.getObjectClassHandle("ObjectRoot.Storage");
+		int simObjectClassHandle = rtiamb.getObjectClassHandle("ObjectRoot.Storage");
 		int stateHandle = rtiamb.getAttributeHandle("stock", simObjectClassHandle);
 
-		AttributeHandleSet attributes = RtiFactoryFactory.getRtiFactory()
-				.createAttributeHandleSet();
+		AttributeHandleSet attributes = RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
 		attributes.add(stateHandle);
 
 		rtiamb.subscribeObjectClassAttributes(simObjectClassHandle, attributes);
 
-		// Zapisanie do inteakcji ko�cz�cej
+		// Zapisanie do inteakcji konczacej
 		int interactionHandle = rtiamb
 				.getInteractionClassHandle("InteractionRoot.Finish");
 		// Dodanie mapowania interakcji na uchwyt

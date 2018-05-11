@@ -8,5 +8,7 @@ org.portico.lrc.compat.JFederationExecutionAlreadyExists: federation exists: Sta
 	at org.portico.impl.hla13.Impl13Helper.processMessage(Impl13Helper.java:123)
 	at org.portico.impl.hla13.Rti13Ambassador.processMessage(Rti13Ambassador.java:5822)
 	at org.portico.impl.hla13.Rti13Ambassador.createFederationExecution(Rti13Ambassador.java:194)
-	at MSK_Project.pojazd.PojazdFederate.runFederate(PojazdFederate.java:32)
-	at MSK_Project.pojazd.PojazdFederate.main(PojazdFederate.java:176)
+	at MSK_Projekt.statystyka.StatystykaFederate.runFederate(StatystykaFederate.java:27)
+	at MSK_Projekt.statystyka.StatystykaFederate.main(StatysWARN  [VERIFY_SUSPECT.TimerThread,StacjaFederation,DESKTOP-RI8BEUG-56390] portico.lrc.jgroups: Detected that federate [unkonwn] may have crashed, investigating...
+WARN  [Regular] portico.lrc.jgroups: Unknown channel member crashed. Don't think it was a federate. Ignoring. uuid=null
+ake resignation because it was too rude to.
