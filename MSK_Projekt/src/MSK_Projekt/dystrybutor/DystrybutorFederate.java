@@ -7,6 +7,8 @@ import hla.rti.jlc.RtiFactoryFactory;
 import org.portico.impl.hla13.types.DoubleTime;
 import org.portico.impl.hla13.types.DoubleTimeInterval;
 
+import MSK_Project.pojazd.Pojazd;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
@@ -21,9 +23,9 @@ public class DystrybutorFederate {
     private RTIambassador rtiamb;
     private DystrybutorAmbassador fedamb;
     private final double timeStep           = 10.0;
-    private String typPaliwa;
-    private boolean czyWolny;
-    private LinkedList<Integer> kolejka; 
+    //private String typPaliwa;
+    //private boolean czyWolny;
+    //private LinkedList<Integer> kolejka; 
 
     public void runFederate() throws RTIexception{
         rtiamb = RtiFactoryFactory.getRtiFactory().createRtiAmbassador();
@@ -69,11 +71,17 @@ public class DystrybutorFederate {
         enableTimePolicy();
 
         publishAndSubscribe();
+        
+        /////////Pocz¹tek dzia³ania programu
+        
+        przygotujDystrybutor(1,"Benzyna");
+        przygotujDystrybutor(2,"Olej Napedowy");
 
         while (fedamb.running) {
-            advanceTime(randomTime());
-            sendInteraction(fedamb.federateTime + fedamb.federateLookahead);
-            rtiamb.tick();
+            advanceTime(1);
+            umozliwienieUslugi();
+            //rtiamb.tick();
+            //waitForUser();
         }
 
     }
@@ -113,21 +121,6 @@ public class DystrybutorFederate {
         }
     }
 
-    private void sendInteraction(double timeStep) throws RTIexception {
-        SuppliedParameters parameters =
-                RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
-        Random random = new Random();
-        byte[] quantity = EncodingHelpers.encodeInt(random.nextInt(10) + 1);
-
-        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.AddProduct");
-        int quantityHandle = rtiamb.getParameterHandle( "quantity", interactionHandle );
-
-        parameters.add(quantityHandle, quantity);
-
-        LogicalTime time = convertTime( timeStep );
-        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
-    }
-
     private void publishAndSubscribe() throws RTIexception {
         //int addProductHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.AddProduct" );
        // rtiamb.publishInteractionClass(addProductHandle);
@@ -145,7 +138,7 @@ public class DystrybutorFederate {
         int czyWolnyHandle    = rtiamb.getAttributeHandle( "czyWolny", classHandle );
         attributes.add( czyWolnyHandle );
 
-        int kolejkaHandle    = rtiamb.getAttributeHandle( "kolejkaHandle", classHandle );
+        int kolejkaHandle    = rtiamb.getAttributeHandle( "kolejka", classHandle );
         attributes.add( kolejkaHandle );
          
         rtiamb.publishObjectClass(classHandle, attributes); //Publikacja Obiektu
@@ -167,15 +160,17 @@ public class DystrybutorFederate {
  
         
         /////////Publikacja Interakcji///////////////
-    	int umieszczenieWKolejceHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.UmieszczenieWKolejce" ); //Powo³anie obiektu InteractionClassHandle, bêd¹cy wskaznikiem do interakcji
-    	rtiamb.publishInteractionClass(umieszczenieWKolejceHandle); //Publikacja interakcji
-    	int udostepnienieUslugiHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.UdostepnienieUslugi" );
-    	rtiamb.publishInteractionClass(udostepnienieUslugiHandle);
+    	int umieszczanieWKolejceHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.UmieszczanieWKolejce" ); //Powo³anie obiektu InteractionClassHandle, bêd¹cy wskaznikiem do interakcji
+    	rtiamb.publishInteractionClass(umieszczanieWKolejceHandle); //Publikacja interakcji
+    	int umozliwienieUslugiHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.UmozliwienieUslugi" );
+    	rtiamb.publishInteractionClass(umozliwienieUslugiHandle);
     	
     	//////////Subskrybcja Interakcji/////////////
     	int staniecieWKolejceHandle = rtiamb.getInteractionClassHandle("InteractionRoot.StaniecieWKolejce"); //Powo³anie obiektu InteractionClassHandle, bêd¹cy wskaznikiem do interakcji
+    	fedamb.staniecieWKolejceHandle = staniecieWKolejceHandle;
     	rtiamb.subscribeInteractionClass(staniecieWKolejceHandle); //Subskrybcja na interakcjê
     	int tankowanieHandle = rtiamb.getInteractionClassHandle("InteractionRoot.Tankowanie");
+    	fedamb.tankowanieHandle = tankowanieHandle;
     	rtiamb.subscribeInteractionClass(tankowanieHandle);
     }
 
@@ -225,4 +220,57 @@ public class DystrybutorFederate {
         }
     }
 
+    ///////////////Dodane Funkcje////////////
+    public void przygotujDystrybutor(int liczba, String typPaliwa)
+    {
+    	Dystrybutor dystrybutor = new Dystrybutor(liczba,typPaliwa);
+    	fedamb.dystrybutory.add(dystrybutor);
+    }
+    
+    private void umozliwienieUslugi() throws RTIexception
+    {
+    	for(Dystrybutor dystrybutor : fedamb.dystrybutory) {
+    		if(dystrybutor.kolejka.size() > 0) {
+    			if(dystrybutor.getCzyWolny())
+    			{
+    				dystrybutor.setObslugiwanyPojazd(dystrybutor.kolejka.get(0));
+    				dystrybutor.kolejka.remove(0);
+    				dystrybutor.setCzyWolny(false);
+    				log("umozliwienieUslugi: Pojazd "+ dystrybutor.getObslugiwanyPojazd() + " ma umozliwiona usluge");
+    				wyslijUmozliwienieUslugi(dystrybutor.getObslugiwanyPojazd());
+    			}
+    		}
+    	}
+    }
+    
+    private void wyslijUmieszczanieWKolejce(int idU) throws RTIexception {
+        SuppliedParameters parameters = RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
+        int idUslugiInt = idU;
+        byte[] idUslugi = EncodingHelpers.encodeInt(idUslugiInt);
+        
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.UmieszczanieWKolejce");
+        int idUslugiHandle = rtiamb.getParameterHandle( "idUslugi", interactionHandle );
+        
+        parameters.add(idUslugiHandle, idUslugi);
+
+        LogicalTime time = convertTime( fedamb.federateTime + fedamb.federateLookahead );
+        log("Wyslanie Interakcji UmieszczanieWKolejce: " + idUslugiInt);
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+    }
+    
+    private void wyslijUmozliwienieUslugi(int idU) throws RTIexception {
+        SuppliedParameters parameters = RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
+        int idUslugiInt = idU;
+        byte[] idUslugi = EncodingHelpers.encodeInt(idUslugiInt);
+        
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.UmozliwienieUslugi");
+        int idUslugiHandle = rtiamb.getParameterHandle( "idUslugi", interactionHandle );
+        
+        parameters.add(idUslugiHandle, idUslugi);
+
+        LogicalTime time = convertTime( fedamb.federateTime + fedamb.federateLookahead );
+        log("Wyslanie Interakcji UmozliwienieUslugi: " + idUslugiInt);
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+    }
+    
 }

@@ -6,15 +6,14 @@ import hla.rti.jlc.RtiFactoryFactory;
 import org.portico.impl.hla13.types.DoubleTime;
 import org.portico.impl.hla13.types.DoubleTimeInterval;
 
+import MSK_Projekt.myjnia.ExternalEvent;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.util.Random;
 
-/**
- * Created by Michal on 2016-04-27.
- */
 public class PojazdFederate {
 
     public static final String READY_TO_RUN = "ReadyToRun";
@@ -22,9 +21,7 @@ public class PojazdFederate {
     private RTIambassador rtiamb;
     private PojazdAmbassador fedamb;
     private final double timeStep           = 10.0;
-    private String typPaliwa;
-    private int czasTankowania;
-    private boolean czyBrudne;
+    private int pojazdHlaHandle;
 
     public void runFederate() throws RTIexception {
         rtiamb = RtiFactoryFactory.getRtiFactory().createRtiAmbassador();
@@ -70,11 +67,19 @@ public class PojazdFederate {
         enableTimePolicy();
 
         publishAndSubscribe();
+        
+        registerPojazdObject();
+        
 
         while (fedamb.running) {
-            advanceTime(randomTime());
-            sendInteraction(fedamb.federateTime + fedamb.federateLookahead);
-            rtiamb.tick();
+            advanceTime(1);
+            przygotujPojazdy(1);
+            staniecieWKolejce();
+            tankowanie();
+            mycie();
+            //wyslijStaniecieWKolejce(0);
+            //rtiamb.tick();
+            waitForUser();
         }
 
     }
@@ -114,27 +119,7 @@ public class PojazdFederate {
         }
     }
 
-    private void sendInteraction(double timeStep) throws RTIexception {
-        SuppliedParameters parameters =
-                RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
-        Random random = new Random();
-        int quantityInt = random.nextInt(10) + 1;
-        byte[] quantity = EncodingHelpers.encodeInt(quantityInt);
-
-        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.GetProduct");
-        int quantityHandle = rtiamb.getParameterHandle( "quantity", interactionHandle );
-
-        parameters.add(quantityHandle, quantity);
-
-        LogicalTime time = convertTime( timeStep );
-        log("Sending GetProduct: " + quantityInt);
-        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
-    }
-
-    private void publishAndSubscribe() throws RTIexception {
-        //int addProductHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.GetProduct" );
-        //rtiamb.publishInteractionClass(addProductHandle);
-    	
+    private void publishAndSubscribe() throws RTIexception {    	
     	////////Publikacja Obiektu////////
     	int classHandle = rtiamb.getObjectClassHandle("ObjectRoot.Pojazd"); //Powo³anie obiektu ObjectClassHandle, bêd¹cy wskaznikiem do obiektu
     	AttributeHandleSet attributes = RtiFactoryFactory.getRtiFactory().createAttributeHandleSet(); //Powo³anie obiektu AttributeHandleSet, bêd¹ca list¹ wskazników atrybutów
@@ -161,8 +146,11 @@ public class PojazdFederate {
         dytrybutorAttributes.add( typPaliwaDHandle ); //Dodanie wskaznika do listy wskazników atrybutów
         
         int czyWolnyHandle    = rtiamb.getAttributeHandle( "czyWolny", dystrybutorClassHandle );
-        dytrybutorAttributes.add( czasTankowaniaHandle );
+        dytrybutorAttributes.add( czyWolnyHandle );
          
+        int kolejkaHandle    = rtiamb.getAttributeHandle( "kolejka", dystrybutorClassHandle );
+        dytrybutorAttributes.add( kolejkaHandle );
+        
         rtiamb.subscribeObjectClassAttributes(dystrybutorClassHandle, dytrybutorAttributes);
         
         /////////Subskrybcja Obiektu Myjnia///////////
@@ -184,9 +172,16 @@ public class PojazdFederate {
     	
     	//////////Subskrybcja Interakcji/////////////
     	int umieszczanieWKolejceHandle = rtiamb.getInteractionClassHandle("InteractionRoot.UmieszczanieWKolejce"); //Powo³anie obiektu InteractionClassHandle, bêd¹cy wskaznikiem do interakcji
+    	fedamb.umieszczanieWKolejceHandle = umieszczanieWKolejceHandle;
     	rtiamb.subscribeInteractionClass(umieszczanieWKolejceHandle); //Subskrybcja na interakcjê
-    	int udostepnienieUslugiHandle = rtiamb.getInteractionClassHandle("InteractionRoot.UdostepnienieUslugi");
-    	rtiamb.subscribeInteractionClass(udostepnienieUslugiHandle);
+    	int umozliwienieUslugiHandle = rtiamb.getInteractionClassHandle("InteractionRoot.UmozliwienieUslugi");
+    	fedamb.umozliwienieUslugiHandle = umozliwienieUslugiHandle;
+    	rtiamb.subscribeInteractionClass(umozliwienieUslugiHandle);
+    }
+    
+    private void registerPojazdObject() throws RTIexception {
+        int classHandle = rtiamb.getObjectClassHandle("ObjectRoot.Pojazd");
+        this.pojazdHlaHandle = rtiamb.registerObjectInstance(classHandle);
     }
 
     private void advanceTime( double timestep ) throws RTIexception
@@ -235,5 +230,152 @@ public class PojazdFederate {
         }
     }
 
+    ///////////////Dodane Funkcje////////////
+    public void przygotujPojazdy(int liczba)
+    {
+    	Random kostka = new Random();
+    	int wyn = kostka.nextInt(10)+1;
+    	if(wyn > 8) {
+	    	int ostatniId;
+	    	int size = fedamb.pojazdy.size();
+	    	if(size > 0)
+	    	{
+	    		ostatniId = fedamb.pojazdy.get(size-1).getId();
+	    	}
+	    	else
+	    	{
+	    		ostatniId = 0;
+	    	}
+	    	for(int i = ostatniId+1; i<ostatniId+liczba+1; ++i)
+	    	{
+	    		Pojazd pojazd = new Pojazd(i);
+	    		fedamb.pojazdy.add(pojazd);
+	    		log("Pojazd " + i + " przygotowany. Razem: " + fedamb.pojazdy.size());
+	    	}
+    	}
+    }
+    
+    
+    private void staniecieWKolejce() throws RTIexception
+    {
+    	for(Pojazd pojazd : fedamb.pojazdy) {
+    		if(pojazd.getStanPojazdu() == "Szuka dystrybutora") {
+    			log("StaniecieWKolejce: Proba pojazdu " + pojazd.getId());
+    			wyslijStaniecieWKolejce(pojazd.getId(),pojazd.getTypPaliwa());
+    			pojazd.setStanPojazdu("Dystrybutor Znaleziony");
+    		}
+    		else if(pojazd.getStanPojazdu() == "Szuka myjni") {
+    			log("StaniecieWKolejce: Proba pojazdu " + pojazd.getId());
+    			wyslijStaniecieWKolejce(pojazd.getId(),"myjnia");
+    			pojazd.setStanPojazdu("Myjnia Znaleziona");
+    		}
+    	}
+    }
+    
+    private void tankowanie() throws RTIexception
+    {
+    	for(Pojazd pojazd : fedamb.pojazdy) {
+    		if(pojazd.getStanPojazdu() == "Rozpoczecie Uslugi" || pojazd.getStanPojazdu() == "Tankuje") {
+    			if(pojazd.getCzasMycia() < 1)
+    			{
+	    			if(pojazd.getCzasTankowania() > 0)
+	    			{
+	    				pojazd.setCzasTankowania(pojazd.getCzasTankowania() - 1);
+	    				log("Tankowanie: Pojazd " + pojazd.getId() + " tankuje. Pozostalo czasu: " + pojazd.getCzasTankowania());
+	    				pojazd.setStanPojazdu("Tankuje");
+	    			}
+	    			else
+	    			{
+		    			wyslijTankowanie(pojazd.getId());
+		    			log("Tankowanie: Pojazd " + pojazd.getId() + " skonczyl tankowanie.");
+		    			if(pojazd.getCzyBrudne())
+		    			{
+		    				pojazd.setStanPojazdu("Szuka myjni");
+		    			}
+		    			else
+		    			{
+		    				pojazd.setStanPojazdu("Szuka kasy");
+		    			}
+	    			}
+	    		}
+    		}
+    	}
+    }
+    	
+	private void mycie() throws RTIexception
+    {
+    	for(Pojazd pojazd : fedamb.pojazdy) {
+    		if(pojazd.getCzasTankowania() < 1) {
+	    		if(pojazd.getStanPojazdu() == "Rozpoczecie Uslugi" || pojazd.getStanPojazdu() == "Myje") {
+	    			if(pojazd.getCzasMycia() > 0)
+	    			{
+	    				pojazd.setCzasMycia(pojazd.getCzasMycia() - 1);
+	    				log("Mycie: Pojazd " + pojazd.getId() + " jest myty. Pozostalo czasu: " + pojazd.getCzasMycia());
+	    				pojazd.setStanPojazdu("Myje");
+	    			}
+	    			else
+	    			{
+		    			wyslijMycie(pojazd.getId());
+		    			log("Mycie: Pojazd " + pojazd.getId() + " skonczyl mycie.");
+		    			pojazd.setStanPojazdu("Szuka kasy");
+	    			}
+	    		}
+    		}
+    	}
+    }
+    
+    private void wyslijStaniecieWKolejce(int idP, String tP) throws RTIexception {
+        SuppliedParameters parameters = RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
+        int idPojazduInt = idP;
+        byte[] idPojazdu = EncodingHelpers.encodeInt(idPojazduInt);
+        String typPaliwaString = tP;
+        byte[] typPaliwa = EncodingHelpers.encodeString(typPaliwaString);
+        
 
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.StaniecieWKolejce");
+        int idPojazduHandle = rtiamb.getParameterHandle( "idPojazdu", interactionHandle );
+        int typPaliwaHandle = rtiamb.getParameterHandle( "typPaliwa", interactionHandle );
+        
+        parameters.add(idPojazduHandle, idPojazdu);
+        parameters.add(typPaliwaHandle, typPaliwa);
+
+        LogicalTime time = convertTime( fedamb.federateTime + fedamb.federateLookahead );
+        log("Wyslanie Interakcji StaniecieWKolejce: " + idPojazduInt);
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+    }
+    
+    private void wyslijTankowanie(int idP) throws RTIexception {
+        SuppliedParameters parameters = RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
+        int idPojazduInt = idP;
+        byte[] idPojazdu = EncodingHelpers.encodeInt(idPojazduInt);
+
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.Tankowanie");
+        int idPojazduHandle = rtiamb.getParameterHandle( "idPojazdu", interactionHandle );
+        
+        parameters.add(idPojazduHandle, idPojazdu);
+
+        LogicalTime time = convertTime( fedamb.federateTime + fedamb.federateLookahead );
+        log("Wyslanie Interakcji Tankowanie: " + idPojazduInt);
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+    }
+    
+    private void wyslijMycie(int idP) throws RTIexception {
+        SuppliedParameters parameters = RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
+        int idPojazduInt = idP;
+        byte[] idPojazdu = EncodingHelpers.encodeInt(idPojazduInt);
+
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.Mycie");
+        int idPojazduHandle = rtiamb.getParameterHandle( "idPojazdu", interactionHandle );
+        
+        parameters.add(idPojazduHandle, idPojazdu);
+
+        LogicalTime time = convertTime( fedamb.federateTime + fedamb.federateLookahead );
+        log("Wyslanie Interakcji Mycie: " + idPojazduInt);
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+    }
+    
+    
+    
+    
+    
 }

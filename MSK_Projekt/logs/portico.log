@@ -1,14 +1,16 @@
-ERROR [main] portico.lrc.jgroups: FAILURE createFederation: already exists, name=StacjaFederation
-ERROR [main] portico.lrc: federation exists: StacjaFederation
-org.portico.lrc.compat.JFederationExecutionAlreadyExists: federation exists: StacjaFederation
-	at org.portico.bindings.jgroups.Federation.sendCreateFederation(Federation.java:222)
-	at org.portico.bindings.jgroups.JGroupsConnection.createFederation(JGroupsConnection.java:218)
-	at org.portico.lrc.services.federation.handlers.outgoing.CreateFederationHandler.process(CreateFederationHandler.java:87)
-	at org.portico.utils.messaging.MessageSink.process(MessageSink.java:187)
+WARN  [VERIFY_SUSPECT.TimerThread,StacjaFederation,DESKTOP-RI8BEUG-20653] portico.lrc.jgroups: Detected that federate [MyjniaFederate] may have crashed, investigating...
+WARN  [VERIFY_SUSPECT.TimerThread,StacjaFederation,DESKTOP-RI8BEUG-20653] portico.lrc.jgroups: Detected that federate [DystrybutorFederate] may have crashed, investigating...
+WARN  [Regular] portico.lrc.jgroups: Federate [DystrybutorFederate] has crashed. Sending fake resignation because it was too rude to.
+WARN  [Regular] portico.lrc.jgroups: Federate [MyjniaFederate] has crashed. Sending fake resignation because it was too rude to.
+cess(MessageSink.java:187)
 	at org.portico.impl.hla13.Impl13Helper.processMessage(Impl13Helper.java:123)
 	at org.portico.impl.hla13.Rti13Ambassador.processMessage(Rti13Ambassador.java:5822)
 	at org.portico.impl.hla13.Rti13Ambassador.createFederationExecution(Rti13Ambassador.java:194)
-	at MSK_Projekt.statystyka.StatystykaFederate.runFederate(StatystykaFederate.java:27)
-	at MSK_Projekt.statystyka.StatystykaFederate.main(StatysWARN  [VERIFY_SUSPECT.TimerThread,StacjaFederation,DESKTOP-RI8BEUG-56390] portico.lrc.jgroups: Detected that federate [unkonwn] may have crashed, investigating...
+	at MSK_Projekt.myjnia.MyjniaFederate.runFederate(MyjniaFederate.java:36)
+	at MSK_Projekt.myjnia.MyjniaFederate.main(MyjniaFederate.java:212)
+WARN  [VERIFY_SUSPECT.TimerThread,StacjaFederation,DESKTOP-RI8BEUG-63962] portico.lrc.jgroups: Detected that federate [PojazdFederate] may have crashed, investigating...
+WARN  [VERIFY_SUSPECT.TimerThread,StacjaFederation,DESKTOP-RI8BEUG-63962] portico.lrc.jgroups: Detected that federate [unkonwn] may have crashed, investigating...
 WARN  [Regular] portico.lrc.jgroups: Unknown channel member crashed. Don't think it was a federate. Ignoring. uuid=null
-ake resignation because it was too rude to.
+WARN  [Regular] portico.lrc.jgroups: Federate [PojazdFederate] has crashed. Sending fake resignation because it was too rude to.
+jniaFederate] has crashed. Sending fake resignation because it was too rude to.
+WARN  [Regular] portico.lrc.jgroups: Federate [PojazdFederate] has crashed. Sending fake resignation because it was too rude to.

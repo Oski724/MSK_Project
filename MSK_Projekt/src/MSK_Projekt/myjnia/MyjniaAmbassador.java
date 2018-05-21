@@ -6,21 +6,14 @@ import hla.rti.jlc.NullFederateAmbassador;
 import hla13.Example13Federate;
 import org.portico.impl.hla13.types.DoubleTime;
 
+import MSK_Projekt.dystrybutor.Dystrybutor;
+
 import java.util.ArrayList;
 
 
 public class MyjniaAmbassador extends NullFederateAmbassador {
 
-    //----------------------------------------------------------
-    //                    STATIC VARIABLES
-    //----------------------------------------------------------
-
-    //----------------------------------------------------------
-    //                   INSTANCE VARIABLES
-    //----------------------------------------------------------
-    // these variables are accessible in the package
     protected double federateTime        = 0.0;
-    protected double grantedTime         = 0.0;
     protected double federateLookahead   = 1.0;
 
     protected boolean isRegulating       = false;
@@ -31,15 +24,19 @@ public class MyjniaAmbassador extends NullFederateAmbassador {
     protected boolean isReadyToRun       = false;
 
     protected boolean running 			 = true;
-    protected int addProductHandle = 0;
-    protected int getProductHandle = 0;
 
-    protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
+    protected int staniecieWKolejceHandle = 0;
+    protected int mycieHandle = 0;
 
+    public ArrayList<Myjnia> myjnie; 
+    
+    public MyjniaAmbassador()
+    {
+    	this.myjnie = new ArrayList<Myjnia>();
+    }
 
     private double convertTime( LogicalTime logicalTime )
     {
-        // PORTICO SPECIFIC!!
         return ((DoubleTime)logicalTime).getTime();
     }
 
@@ -89,56 +86,61 @@ public class MyjniaAmbassador extends NullFederateAmbassador {
 
     public void timeAdvanceGrant( LogicalTime theTime )
     {
-        this.grantedTime = convertTime( theTime );
+        this.federateTime = convertTime( theTime );
         this.isAdvancing = false;
     }
 
 
     public void receiveInteraction( int interactionClass,
-                                    ReceivedInteraction theInteraction,
-                                    byte[] tag )
-    {
-        // just pass it on to the other method for printing purposes
-        // passing null as the time will let the other method know it
-        // it from us, not from the RTI
-        receiveInteraction(interactionClass, theInteraction, tag, null, null);
-    }
-
-    public void receiveInteraction( int interactionClass,
-                                    ReceivedInteraction theInteraction,
-                                    byte[] tag,
-                                    LogicalTime theTime,
-                                    EventRetractionHandle eventRetractionHandle )
-    {
-        StringBuilder builder = new StringBuilder( "Interaction Received:" );
-        if(interactionClass == addProductHandle) {
-            try {
-                int qty = EncodingHelpers.decodeInt(theInteraction.getValue(0));
-                double time =  convertTime(theTime);
-                externalEvents.add(new ExternalEvent(qty, ExternalEvent.EventType.ADD , time));
-                builder.append("AddProduct , time=" + time);
-                builder.append(" qty=").append(qty);
-                builder.append( "\n" );
-
-            } catch (ArrayIndexOutOfBounds ignored) {
-
-            }
-
-        } else if (interactionClass == getProductHandle) {
-            try {
-                int qty = EncodingHelpers.decodeInt(theInteraction.getValue(0));
-                double time =  convertTime(theTime);
-                externalEvents.add(new ExternalEvent(qty, ExternalEvent.EventType.GET , time));
-                builder.append( "GetProduct , time=" + time );
-                builder.append(" qty=").append(qty);
-                builder.append( "\n" );
-
-            } catch (ArrayIndexOutOfBounds ignored) {
-
-            }
+            ReceivedInteraction theInteraction,
+            byte[] tag,
+            LogicalTime theTime,
+            EventRetractionHandle eventRetractionHandle )
+	{
+		//StringBuilder builder = new StringBuilder( "Interaction Received:" );
+		log( "Otrzymana Interakcja:" + interactionClass);
+		try {
+			int idP = EncodingHelpers.decodeInt(theInteraction.getValue(0));
+			
+			if(interactionClass == staniecieWKolejceHandle && theInteraction.size() > 1) {
+				String cM = EncodingHelpers.decodeString(theInteraction.getValue(1));
+				odpowiedzStaniecieWKolejceHandle(idP,cM);
+				
+			} else if (interactionClass == mycieHandle) {
+				
+				odpowiedzMycie(idP);
+			}
+        } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
+            arrayIndexOutOfBounds.printStackTrace();
         }
-
-        log( builder.toString() );
+	}
+    
+    public void odpowiedzStaniecieWKolejceHandle(int idP,String cM)
+    {
+    	//log("StaniecieWKolejce: Proba pojazdu " + idP);
+    	for(Myjnia myjnia : this.myjnie)
+    	{
+    		if(cM.equals("myjnia"))
+    		{
+    			myjnia.kolejka.add(idP);
+    			log("StaniecieWKolejce: Myjnia " + myjnia.getIdUslugi()+". Razem:" + myjnia.kolejka.size());
+    		}
+    	}
     }
+    
+    public void odpowiedzMycie(int idP)
+    {
+    	for(Myjnia myjnia : this.myjnie)
+    	{
+    		if(myjnia.getObslugiwanyPojazd() == idP)
+    		{
+    			log("Mycie: Pojazd " + myjnia.getObslugiwanyPojazd() + " skonczyl mycie. Myjnia " + myjnia.getIdUslugi() + " jest zwolniona.");
+    			myjnia.setObslugiwanyPojazd(0);
+    			myjnia.setCzyWolny(true);
+    		}
+    	}
+    }
+
+    
 
 }

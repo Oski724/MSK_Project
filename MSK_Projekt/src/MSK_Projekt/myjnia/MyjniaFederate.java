@@ -7,12 +7,15 @@ import hla.rti.jlc.RtiFactoryFactory;
 import org.portico.impl.hla13.types.DoubleTime;
 import org.portico.impl.hla13.types.DoubleTimeInterval;
 
+import MSK_Projekt.dystrybutor.Dystrybutor;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.util.Collections;
 import java.util.LinkedList;
+import java.util.Random;
 
 public class MyjniaFederate {
 
@@ -21,12 +24,7 @@ public class MyjniaFederate {
     private RTIambassador rtiamb;
     private MyjniaAmbassador fedamb;
     private final double timeStep           = 10.0;
-    private int stock                       = 10;
-    private int storageHlaHandle;
-    private int czasMycia;
-    private boolean czyWolne;
-    private LinkedList<Integer> kolejka;
-
+    private int myjniaHlaHandle;
 
     public void runFederate() throws Exception {
 
@@ -74,55 +72,15 @@ public class MyjniaFederate {
 
         publishAndSubscribe();
 
-        registerStorageObject();
+        //registerMyjniaObject();
+        
+        przygotujMyjnie(3,5);
 
         while (fedamb.running) {
-            double timeToAdvance = fedamb.federateTime + timeStep;
-            advanceTime(timeToAdvance);
-
-            if(fedamb.externalEvents.size() > 0) {
-                fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
-                for(ExternalEvent externalEvent : fedamb.externalEvents) {
-                    fedamb.federateTime = externalEvent.getTime();
-                    switch (externalEvent.getEventType()) {
-                        case ADD:
-                            this.addToStock(externalEvent.getQty());
-                            break;
-
-                        case GET:
-                            this.getFromStock(externalEvent.getQty());
-                            break;
-                    }
-                }
-                fedamb.externalEvents.clear();
-            }
-
-            if(fedamb.grantedTime == timeToAdvance) {
-                timeToAdvance += fedamb.federateLookahead;
-                log("Updating stock at time: " + timeToAdvance);
-                updateHLAObject(timeToAdvance);
-                fedamb.federateTime = timeToAdvance;
-            }
-
-            rtiamb.tick();
-        }
-
-    }
-
-    public void addToStock(int qty) {
-        this.stock += qty;
-
-        log("Added "+ qty + " at time: "+ fedamb.federateTime +", current stock: " + this.stock);
-    }
-
-    public void getFromStock(int qty) {
-
-        if(this.stock - qty < 0) {
-            log("Not enough product at stock");
-        }
-        else {
-            log("Removed "+ qty + " at time: "+ fedamb.federateTime +", current stock: " + this.stock);
-            this.stock -= qty;
+            advanceTime(1);
+            umozliwienieUslugi();
+            //rtiamb.tick();
+            //waitForUser();
         }
 
 
@@ -142,28 +100,16 @@ public class MyjniaFederate {
             e.printStackTrace();
         }
     }
-
-    private void registerStorageObject() throws RTIexception {
-        int classHandle = rtiamb.getObjectClassHandle("ObjectRoot.Storage");
-        this.storageHlaHandle = rtiamb.registerObjectInstance(classHandle);
+    
+    private void registerMyjniaObject() throws RTIexception {
+        int classHandle = rtiamb.getObjectClassHandle("ObjectRoot.Myjnia");
+        this.myjniaHlaHandle = rtiamb.registerObjectInstance(classHandle);
     }
 
-    private void updateHLAObject(double time) throws RTIexception{
-        SuppliedAttributes attributes =
-                RtiFactoryFactory.getRtiFactory().createSuppliedAttributes();
-
-        int classHandle = rtiamb.getObjectClass(storageHlaHandle);
-        int stockHandle = rtiamb.getAttributeHandle( "stock", classHandle );
-        byte[] stockValue = EncodingHelpers.encodeInt(stock);
-
-        attributes.add(stockHandle, stockValue);
-        LogicalTime logicalTime = convertTime( time );
-        rtiamb.updateAttributeValues( storageHlaHandle, attributes, "actualize stock".getBytes(), logicalTime );
-    }
-
-    private void advanceTime( double timeToAdvance ) throws RTIexception {
+    private void advanceTime( double timestep ) throws RTIexception {
+    	log("requesting time advance for: " + timestep);
         fedamb.isAdvancing = true;
-        LogicalTime newTime = convertTime( timeToAdvance );
+        LogicalTime newTime = convertTime( fedamb.federateTime + timestep );
         rtiamb.timeAdvanceRequest( newTime );
 
         while( fedamb.isAdvancing )
@@ -171,25 +117,14 @@ public class MyjniaFederate {
             rtiamb.tick();
         }
     }
+    
+    private double randomTime() {
+        Random r = new Random();
+        return 1 +(9 * r.nextDouble());
+    }
 
     private void publishAndSubscribe() throws RTIexception {
 
-        /*int classHandle = rtiamb.getObjectClassHandle("ObjectRoot.Storage");
-        int stockHandle    = rtiamb.getAttributeHandle( "stock", classHandle );
-
-        AttributeHandleSet attributes =
-                RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
-        attributes.add( stockHandle );
-
-        rtiamb.publishObjectClass(classHandle, attributes);
-
-        int addProductHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.AddProduct" );
-        fedamb.addProductHandle = addProductHandle;
-        rtiamb.subscribeInteractionClass( addProductHandle );
-
-        int getProductHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.GetProduct" );
-        fedamb.getProductHandle = getProductHandle;
-        rtiamb.subscribeInteractionClass( getProductHandle );*/
         		
     	////////Publikacja Obiektu////////
     	int classHandle = rtiamb.getObjectClassHandle("ObjectRoot.Myjnia"); //Powo³anie obiektu ObjectClassHandle, bêd¹cy wskaznikiem do obiektu
@@ -201,7 +136,7 @@ public class MyjniaFederate {
         int czyWolnyHandle    = rtiamb.getAttributeHandle( "czyWolny", classHandle );
         attributes.add( czyWolnyHandle );
 
-        int kolejkaHandle    = rtiamb.getAttributeHandle( "kolejkaHandle", classHandle );
+        int kolejkaHandle    = rtiamb.getAttributeHandle( "kolejka", classHandle );
         attributes.add( kolejkaHandle );
          
         rtiamb.publishObjectClass(classHandle, attributes); //Publikacja Obiektu
@@ -217,15 +152,17 @@ public class MyjniaFederate {
  
         
         /////////Publikacja Interakcji///////////////
-    	int umieszczenieWKolejceHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.UmieszczenieWKolejce" ); //Powo³anie obiektu InteractionClassHandle, bêd¹cy wskaznikiem do interakcji
-    	rtiamb.publishInteractionClass(umieszczenieWKolejceHandle); //Publikacja interakcji
-    	int udostepnienieUslugiHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.UdostepnienieUslugi" );
-    	rtiamb.publishInteractionClass(udostepnienieUslugiHandle);
+    	int umieszczanieWKolejceHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.UmieszczanieWKolejce" ); //Powo³anie obiektu InteractionClassHandle, bêd¹cy wskaznikiem do interakcji
+    	rtiamb.publishInteractionClass(umieszczanieWKolejceHandle); //Publikacja interakcji
+    	int umozliwienieUslugiHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.UmozliwienieUslugi" );
+    	rtiamb.publishInteractionClass(umozliwienieUslugiHandle);
     	
     	//////////Subskrybcja Interakcji/////////////
     	int staniecieWKolejceHandle = rtiamb.getInteractionClassHandle("InteractionRoot.StaniecieWKolejce"); //Powo³anie obiektu InteractionClassHandle, bêd¹cy wskaznikiem do interakcji
+    	fedamb.staniecieWKolejceHandle = staniecieWKolejceHandle;
     	rtiamb.subscribeInteractionClass(staniecieWKolejceHandle); //Subskrybcja na interakcjê
     	int mycieHandle = rtiamb.getInteractionClassHandle("InteractionRoot.Mycie");
+    	fedamb.mycieHandle = mycieHandle;
     	rtiamb.subscribeInteractionClass(mycieHandle);
   
     }
@@ -276,6 +213,66 @@ public class MyjniaFederate {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+    
+    ///////////////Dodane Funkcje////////////
+    public void przygotujMyjnie(int id, int czasMycia)
+    {
+    	Myjnia myjnia = new Myjnia(id,czasMycia);
+    	fedamb.myjnie.add(myjnia);
+    	log("Myjnia " + id + " przygotowana. Czas mycia: "+ czasMycia +" Razem: " + fedamb.myjnie.size());
+    }
+    
+    private void umozliwienieUslugi() throws RTIexception
+    {
+    	for(Myjnia myjnia : fedamb.myjnie) {
+    		if(myjnia.kolejka.size() > 0) {
+    			if(myjnia.getCzyWolny())
+    			{
+    				myjnia.setObslugiwanyPojazd(myjnia.kolejka.get(0));
+    				myjnia.kolejka.remove(0);
+    				myjnia.setCzyWolny(false);
+    				log("umozliwienieUslugi: Pojazd "+ myjnia.getObslugiwanyPojazd() + " ma umozliwiona usluge");
+    				wyslijUmozliwienieUslugi(myjnia.getObslugiwanyPojazd(),myjnia.getCzasMycia());
+    			}
+    		}
+    	}
+    }
+    
+    private void wyslijUmieszczanieWKolejce(int idU) throws RTIexception {
+        SuppliedParameters parameters = RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
+        int idUslugiInt = idU;
+        byte[] idUslugi = EncodingHelpers.encodeInt(idUslugiInt);
+        
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.UmieszczanieWKolejce");
+        int idUslugiHandle = rtiamb.getParameterHandle( "idUslugi", interactionHandle );
+        
+        parameters.add(idUslugiHandle, idUslugi);
+
+        LogicalTime time = convertTime( fedamb.federateTime + fedamb.federateLookahead );
+        log("Wyslanie Interakcji UmieszczanieWKolejce: " + idUslugiInt);
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+    }
+    
+    private void wyslijUmozliwienieUslugi(int idU, int cM) throws RTIexception {
+        SuppliedParameters parameters = RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
+        int idUslugiInt = idU;
+        int czasMyciaInt = cM;
+        byte[] idUslugi = EncodingHelpers.encodeInt(idUslugiInt);
+        byte[] czasMycia = EncodingHelpers.encodeInt(czasMyciaInt);
+        
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.UmozliwienieUslugi");
+        int idUslugiHandle = rtiamb.getParameterHandle( "idUslugi", interactionHandle );
+        
+        parameters.add(idUslugiHandle, idUslugi);
+        
+        int czasMyciaHandle = rtiamb.getParameterHandle( "czasMycia", interactionHandle );
+        
+        parameters.add(czasMyciaHandle, czasMycia);
+
+        LogicalTime time = convertTime( fedamb.federateTime + fedamb.federateLookahead );
+        log("Wyslanie Interakcji UmozliwienieUslugi: " + idUslugiInt);
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
     }
 
 }
